@@ -6,7 +6,9 @@ import cv2
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from pyrobot.tools.followLineTools import findLineDeviation
-from common import get_red_filtered_image, detect_arrow
+from common import get_red_filtered_image
+from arrow_detection import filter_arrow
+from arrow_info import detect_arrow_with_angle
 
 
 class BrainFollowLine(Brain):
@@ -52,7 +54,12 @@ class BrainFollowLine(Brain):
         # cv2.imshow("Red Stage Camera Image", red_img)
         # cv2.waitKey(1)
 
-        arrow = detect_arrow(red_image)
+        arrow_image, exist = filter_arrow(red_image)
+
+        if exist:
+            arrow_image = detect_arrow_with_angle(arrow_image)
+            cv2.imshow("Arrow Image", arrow_image)
+            cv2.waitKey(1)
 
         # convert the image into grayscale
         imageGray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)

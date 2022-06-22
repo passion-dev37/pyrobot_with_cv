@@ -8,7 +8,6 @@ from cv_bridge import CvBridge, CvBridgeError
 from pyrobot.tools.followLineTools import findLineDeviation
 from common import get_red_filtered_image
 from arrow_detection import filter_arrow
-from arrow_info import detect_arrow_with_angle
 
 
 class BrainFollowLine(Brain):
@@ -23,7 +22,13 @@ class BrainFollowLine(Brain):
     MED_RIGHT = -0.85
     HARD_RIGHT = -1.8
 
+    MED_TURN_LEFT = 0.9
+    HARD_TURN_LEFT = 2.05
+    MED_TURN_RIGHT = -0.9
+    HARD_TURN_RIGHT = -2.05
+
     NO_ERROR = 0
+    check_turn = 0
 
     def setup(self):
         self.image_sub = rospy.Subscriber("/image", Image, self.callback)
@@ -43,61 +48,59 @@ class BrainFollowLine(Brain):
         except CvBridgeError as e:
             print(e)
 
-        # display the robot's camera's image using opencv
-        cv2.imshow("Stage Camera Image", cv_image)
-        cv2.waitKey(1)
-
-        # write the image to a file, for debugging etc.
-        # cv2.imwrite("debug-capture.png", cv_image)
         red_image = get_red_filtered_image(cv_image)
 
-        # cv2.imshow("Red Stage Camera Image", red_img)
-        # cv2.waitKey(1)
-
-        arrow_image, exist = filter_arrow(red_image)
-
-        if exist:
-            arrow_image = detect_arrow_with_angle(arrow_image)
-            cv2.imshow("Arrow Image", arrow_image)
-            cv2.waitKey(1)
-
-        # convert the image into grayscale
-        imageGray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-
-        # determine the robot's deviation from the line.
-        foundLine, error = findLineDeviation(imageGray)
-        # print("findLineDeviation returned ", foundLine, error)
-
-        #     # display a debug image using opencv
-        #     middleRowIndex = cv_image.shape[1]//2
-        #     centerColumnIndex = cv_image.shape[0]//2
-        #     if (foundLine):
-        #       cv2.rectangle(cv_image,
-        #                     (int(error*middleRowIndex)+middleRowIndex-5,
-        #                      centerColumnIndex-5),
-        #                     (int(error*middleRowIndex)+middleRowIndex+5,
-        #                      centerColumnIndex+5),
-        #                     (0,255,0),
-        #                     3)
-        #     cv2.imshow("Debug findLineDeviation", cv_image)
-        #     cv2.waitKey(1)
-
-        # A trivial on-off controller
-        if (foundLine):
-            # if(front and left and right > 0.5):
-            if (error > 0.15 and error < 0.25):
-                # print("Turning right.")
-                self.move(self.MED_FORWARD, self.MED_RIGHT)
-            elif (error < -0.15 and error > -0.25):
-                # print("Turning left.")
-                self.move(self.MED_FORWARD, self.MED_LEFT)
-            elif (error > 0.25):
-                self.move(self.SLOW_FORWARD, self.HARD_RIGHT)
-            elif (error < -0.25):
-                self.move(self.SLOW_FORWARD, self.HARD_LEFT)
+        arrow_image, exist, angle = filter_arrow(red_image)
+        show_image = cv_image.copy()
+        if exist and self.check_turn < 100 and abs(angle) > 10:
+            self.check_turn = self.check_turn + 1
+            #cv2.imshow("Arrow Image", arrow_image)
+            #cv2.waitKey(1)
+            if angle < -90:
+                angle += 360
+            angle = angle - 90
+            print(angle)
+            if (angle > 90):
+                self.move(self.SLOW_FORWARD, self.HARD_TURN_LEFT)
+            elif (angle > 0):
+                self.move(self.MED_FORWARD, self.MED_TURN_LEFT)
+            elif (angle < -90):
+                self.move(self.SLOW_FORWARD, self.HARD_TURN_RIGHT)
             else:
-                # print("Straight ahead.")
-                self.move(self.FULL_FORWARD, self.NO_TURN)
+                self.move(self.MED_FORWARD, self.MED_TURN_RIGHT)
+            if angle > 15:
+                cv2.putText(show_image, "Left Arrow Detected",
+                            (50, 50), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 1)
+            elif angle < -15:
+                cv2.putText(show_image, "Right Arrow Detected",
+                            (50, 50), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 1)
+        else:
+            self.check_turn = 0
+            # convert the image into grayscale
+            imageGray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+
+            # determine the robot's deviation from the line.
+            foundLine, error = findLineDeviation(imageGray)
+
+            # A trivial on-off controller
+            if (foundLine):
+                # if(front and left and right > 0.5):
+                if (error > 0.15 and error < 0.23):
+                    # print("Turning right.")
+                    self.move(self.MED_FORWARD, self.MED_RIGHT)
+                elif (error < -0.15 and error > -0.23):
+                    # print("Turning left.")
+                    self.move(self.MED_FORWARD, self.MED_LEFT)
+                elif (error > 0.23):
+                    self.move(self.SLOW_FORWARD, self.HARD_RIGHT)
+                elif (error < -0.23):
+                    self.move(self.SLOW_FORWARD, self.HARD_LEFT)
+                else:
+                    # print("Straight ahead.")
+                    self.move(self.FULL_FORWARD, self.NO_TURN)
+        # display the robot's camera's image using opencv
+        cv2.imshow("Stage Camera Image", show_image)
+        cv2.waitKey(1)
 
 
 def INIT(engine):

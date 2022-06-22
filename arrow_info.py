@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import math
 import numpy as np
@@ -74,7 +76,7 @@ def get_arrow_info(arrow_image):
             point1, point2 = get_max_distance_point(cnt)
 
             angle = angle_between_points(point1, point2)
-            lenght = get_length(point1, point2)
+            length = get_length(point1, point2)
 
             cv2.line(arrow_info_image, point1, point2, (0, 255, 255), 1)
 
@@ -82,9 +84,10 @@ def get_arrow_info(arrow_image):
             cv2.circle(arrow_info_image, point2, 2, (255, 0, 0), 3)
 
             cv2.putText(arrow_info_image, "angle : {0:0.2f}".format(angle),
-                        point2, cv2.FONT_HERSHEY_PLAIN, 0.8, (0, 0, 255), 1)
-            cv2.putText(arrow_info_image, "lenght : {0:0.2f}".format(lenght),
+                        point1, cv2.FONT_HERSHEY_PLAIN, 0.8, (0, 0, 255), 1)
+            cv2.putText(arrow_info_image, "length : {0:0.2f}".format(length),
                         (point2[0], point2[1] + 20), cv2.FONT_HERSHEY_PLAIN, 0.8, (0, 0, 255), 1)
+            arrow_info.append([angle, length])
 
         return arrow_info_image, arrow_info
     else:
@@ -98,5 +101,6 @@ def detect_arrow_with_angle(image):
     arrow_image = get_filter_arrow_image(thresh_image)
     if arrow_image is not None:
         arrow_image, arrow_info = get_arrow_info(arrow_image)
+        cv2.imwrite("arrow_info_" + str(time.time()) + "_image.png", arrow_image)
         return arrow_image, arrow_info
     return arrow_image, None

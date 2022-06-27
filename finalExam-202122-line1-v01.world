@@ -165,4 +165,4 @@ arrow
 )
 
 # obstacle
-box( pose [ 2.25 1.6 0 0 ] name "box1" color "gray30")
+# box( pose [ 2.25 1.6 0 0 ] name "box1" color "gray30")

@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from pyrobot.brain import Brain
 
@@ -8,13 +10,14 @@ from cv_bridge import CvBridge, CvBridgeError
 from pyrobot.tools.followLineTools import findLineDeviation
 from common import get_red_filtered_image
 from arrow_detection import filter_arrow
+from junction_detection import detect_junction
 
 
 class BrainFollowLine(Brain):
     NO_FORWARD = 0
     SLOW_FORWARD = 0.11
-    MED_FORWARD = 0.5
-    FULL_FORWARD = 0.7
+    MED_FORWARD = 0.43  # 0.5
+    FULL_FORWARD = 0.63  # 0.7
 
     NO_TURN = 0
     MED_LEFT = 0.85
@@ -49,31 +52,49 @@ class BrainFollowLine(Brain):
             print(e)
 
         red_image = get_red_filtered_image(cv_image)
+        # cv2.imshow("Red Image", red_image)
+        # cv2.waitKey(1)
 
         arrow_image, exist, angle = filter_arrow(red_image)
         show_image = cv_image.copy()
-        if exist and self.check_turn < 100 and abs(angle) > 10:
-            self.check_turn = self.check_turn + 1
-            #cv2.imshow("Arrow Image", arrow_image)
-            #cv2.waitKey(1)
+
+        if exist:
+            junc_exist, junc_center = detect_junction(cv_image)
+            if junc_exist:
+                cv2.putText(show_image, "Junction Detected",
+                            (50, 150), cv2.FONT_HERSHEY_PLAIN, 1.5, (255, 128, 128), 1)
+
+        if exist:
             if angle < -90:
                 angle += 360
             angle = angle - 90
             print(angle)
-            if (angle > 90):
-                self.move(self.SLOW_FORWARD, self.HARD_TURN_LEFT)
-            elif (angle > 0):
-                self.move(self.MED_FORWARD, self.MED_TURN_LEFT)
-            elif (angle < -90):
-                self.move(self.SLOW_FORWARD, self.HARD_TURN_RIGHT)
-            else:
-                self.move(self.MED_FORWARD, self.MED_TURN_RIGHT)
-            if angle > 15:
+        if exist and self.check_turn < 100 and abs(angle) > 10:
+            self.check_turn = self.check_turn + 1
+
+            # if (angle > 90):
+            #     self.move(self.SLOW_FORWARD, self.HARD_TURN_LEFT)
+            # elif (angle > 0):
+            #     self.move(self.MED_FORWARD, self.MED_TURN_LEFT)
+            # elif (angle < -90):
+            #     self.move(self.SLOW_FORWARD, self.HARD_TURN_RIGHT)
+            # else:
+            #     self.move(self.MED_FORWARD, self.MED_TURN_RIGHT)
+
+            if angle > 25:
                 cv2.putText(show_image, "Left Arrow Detected",
                             (50, 50), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 1)
-            elif angle < -15:
+            elif angle < -25:
                 cv2.putText(show_image, "Right Arrow Detected",
                             (50, 50), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 1)
+        if exist and junc_exist:
+            if abs(angle) > 90:
+                forward = self.SLOW_FORWARD
+            else:
+                forward = self.MED_FORWARD
+
+            turn = angle*math.pi*1.2/180
+            self.move(forward, turn)
         else:
             self.check_turn = 0
             # convert the image into grayscale

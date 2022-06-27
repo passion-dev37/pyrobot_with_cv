@@ -34,7 +34,7 @@ def find_tip(points, convex_hull):
                     max_distance = distance
                     max_k = k
 
-            dx, dy = points[j][0] - points[k][0], points[j][1] - points[k][1]
+            dx, dy = points[j][0] - points[max_k][0], points[j][1] - points[max_k][1]
             rads = math.atan2(-dy, dx)
             degrees = math.degrees(rads)
             return tuple(points[j]), degrees
@@ -45,6 +45,8 @@ def filter_arrow(img):
     result_image = np.zeros_like(img)
     count = 0
     angle = None
+    height = len(img)
+    # width = len(img[0])
     for cnt in contours:
         peri = cv2.arcLength(cnt, True)
         approx = cv2.approxPolyDP(cnt, 0.025 * peri, True)
@@ -53,6 +55,9 @@ def filter_arrow(img):
         if 6 > sides > 3 and sides + 2 == len(approx):
             arrow_tip, degrees = find_tip(approx[:, 0, :], hull.squeeze())
             if arrow_tip:
+                (x, y) = arrow_tip
+                if y < height / 8 or y > height * 7 / 8:
+                    return result_image, False, None
                 count = count + 1
                 angle = degrees
                 cv2.drawContours(result_image, [cnt], -1, (0, 255, 0), 3)

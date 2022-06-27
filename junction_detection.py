@@ -67,6 +67,28 @@ def get_directions(x, y, x_list, y_list):
     return result_points, result_degrees
 
 
+def check_junction_type(gray, x, y):
+    height = len(gray)
+    width = len(gray[0])
+    x_list = []
+    y_list = []
+    for i in range(height):
+        for j in range(width):
+            if gray[i][j]:
+                x_list.append(j)
+                y_list.append(i)
+    end_points, angles = get_directions(x, y, x_list, y_list)
+    if len(angles) == 4:
+        return 'X'
+    if len(angles) == 3:
+        for i in range(3):
+            j = (i+1) % 3
+            if abs(180 - abs(angles[j] - angles[i])) < 15:
+                return 'T'
+        return 'Y'
+    return None
+
+
 def detect_junction(inputImage):
     # Prepare a deep copy of the input for results:
     inputImageCopy = get_blue_filtered_image(inputImage)
@@ -87,8 +109,7 @@ def detect_junction(inputImage):
     # Compute the skeleton:
     skeleton = cv2.ximgproc.thinning(grayscaleImage, None, 1)
 
-    cv2.imshow("Skeleton", skeleton)
-    # cv2.waitKey(1)
+    # cv2.imshow("Skeleton", skeleton)
 
     # Threshold the image so that white pixels get a value of 10 and
     # black pixels a value of 0:
@@ -134,15 +155,13 @@ def detect_junction(inputImage):
         y = int(np.mean(Y))
         x = int(np.mean(X))
 
-        if y < height/8 or y > height*7/8:
-            return False, None
-        if x < width/8 or x > width*7/8:
-            return False, None
+        if y < height/6 or y > height*5/6:
+            return False, None, None
+        if x < width/6 or x > width*5/6:
+            return False, None, None
 
-        # directions, angles = get_directions(x, y, X, Y)
-        # print("Directions")
-        # print(len(directions))
-        # print(angles)
+        junc_type = check_junction_type(skeleton, x, y)
+
         # Draw the intersection point:
         # Set circle color:
         color = (0, 0, 255)
@@ -151,8 +170,8 @@ def detect_junction(inputImage):
         cv2.circle(inputImageCopy, (x, y), 3, color, -1)
 
         # Show Image
-        cv2.imshow("Intersections", inputImageCopy)
-        cv2.waitKey(1)
-        return True, (x, y)
+        # cv2.imshow("Intersections", inputImageCopy)
+        # cv2.waitKey(1)
+        return True, (x, y), junc_type
 
-    return False, None
+    return False, None, None

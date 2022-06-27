@@ -30,6 +30,8 @@ class BrainFollowLine(Brain):
     MED_TURN_RIGHT = -0.9
     HARD_TURN_RIGHT = -2.05
 
+    TURN_ARG = 1.29
+
     NO_ERROR = 0
     check_turn = 0
 
@@ -59,16 +61,17 @@ class BrainFollowLine(Brain):
         show_image = cv_image.copy()
 
         if exist:
-            junc_exist, junc_center = detect_junction(cv_image)
+            junc_exist, junc_center, junc_type = detect_junction(cv_image)
             if junc_exist:
-                cv2.putText(show_image, "Junction Detected",
-                            (50, 150), cv2.FONT_HERSHEY_PLAIN, 1.5, (255, 128, 128), 1)
+                if junc_type:
+                    cv2.putText(show_image, junc_type + " Junction Detected",
+                            (50, 150), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 255), 1)
 
         if exist:
             if angle < -90:
                 angle += 360
             angle = angle - 90
-            print(angle)
+            # print(angle)
         if exist and self.check_turn < 100 and abs(angle) > 10:
             self.check_turn = self.check_turn + 1
 
@@ -93,8 +96,10 @@ class BrainFollowLine(Brain):
             else:
                 forward = self.MED_FORWARD
 
-            turn = angle*math.pi*1.2/180
+            turn = angle*math.pi*self.TURN_ARG/180
             self.move(forward, turn)
+            self.move(forward, turn)
+            # self.move(forward, turn)
         else:
             self.check_turn = 0
             # convert the image into grayscale

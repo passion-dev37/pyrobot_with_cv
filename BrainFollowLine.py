@@ -11,6 +11,7 @@ from pyrobot.tools.followLineTools import findLineDeviation
 from common import get_red_filtered_image
 from arrow_detection import filter_arrow
 from junction_detection import detect_junction
+from mark_detection import mark_recognization, init_mark_recognization_engine
 
 
 class BrainFollowLine(Brain):
@@ -34,6 +35,7 @@ class BrainFollowLine(Brain):
 
     NO_ERROR = 0
     check_turn = 0
+    clfSeg, clfORB, clfHU = init_mark_recognization_engine()
 
     def setup(self):
         self.image_sub = rospy.Subscriber("/image", Image, self.callback)
@@ -59,6 +61,8 @@ class BrainFollowLine(Brain):
 
         arrow_image, exist, angle = filter_arrow(red_image)
         show_image = cv_image.copy()
+        if not exist:
+            show_image = mark_recognization(self.clfSeg, self.clfORB, self.clfHU, show_image)
 
         if exist:
             junc_exist, junc_center, junc_type = detect_junction(cv_image)
